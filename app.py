@@ -303,7 +303,7 @@ elif menu == "🔮 Prediksi Baru":
             'contact': contact, 'month': month, 'poutcome': poutcome
         }
 
-.
+
         input_final = pd.DataFrame(0, index=[0], columns=feature_cols)
 
 
