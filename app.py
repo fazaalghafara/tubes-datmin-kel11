@@ -48,26 +48,22 @@ def train_models(df):
     X = df.drop('deposit', axis=1).copy()
     y = df['deposit'].copy()
 
-
     categorical_features = X.select_dtypes(include='object').columns.tolist()
+    numerical_features = X.select_dtypes(exclude='object').columns.tolist()
     X_encoded = pd.get_dummies(X, columns=categorical_features, drop_first=True)
 
     le_target = LabelEncoder()
     y_encoded = le_target.fit_transform(y)
 
-
     X_train, X_test, y_train, y_test = train_test_split(
         X_encoded, y_encoded, test_size=0.2, random_state=42
     )
 
-
     lr = LogisticRegression(max_iter=2000)
     lr.fit(X_train, y_train)
 
-
     nb = GaussianNB()
     nb.fit(X_train, y_train)
-
 
     cluster_features = ['age', 'balance']
     X_cluster = df[cluster_features]
@@ -79,10 +75,10 @@ def train_models(df):
     sil_score = silhouette_score(X_cluster_scaled, cluster_labels)
 
     return (lr, nb, le_target, X_test, y_test,
-            X_encoded.columns.tolist(), kmeans, scaler_cluster,
-            X_cluster_scaled, cluster_labels, sil_score)
+            X_encoded.columns.tolist(), categorical_features, numerical_features,
+            kmeans, scaler_cluster, X_cluster_scaled, cluster_labels, sil_score)
 
-(lr, nb, le_target, X_test, y_test, feature_cols,
+(lr, nb, le_target, X_test, y_test, feature_cols, categorical_features, numerical_features,
  kmeans, scaler_cluster, X_cluster_scaled, cluster_labels, sil_score) = train_models(df)
 
 
@@ -132,7 +128,6 @@ if menu == "📊 Eksplorasi Data":
     plt.close()
 
 
-
 elif menu == "🧩 Segmentasi Nasabah":
     st.header("🧩 Segmentasi Nasabah (K-Means, k=4)")
     st.markdown(f"Segmentasi menggunakan fitur **age** dan **balance**. Silhouette Score: **{sil_score:.3f}**")
@@ -157,7 +152,6 @@ elif menu == "🧩 Segmentasi Nasabah":
     df_cluster_profile = df[['age', 'balance']].copy()
     df_cluster_profile['cluster'] = cluster_labels
     st.dataframe(df_cluster_profile.groupby('cluster').agg(['mean', 'median', 'count']))
-
 
 
 elif menu == "📈 Evaluasi Model":
@@ -231,7 +225,6 @@ elif menu == "📈 Evaluasi Model":
     plt.close()
 
 
-
 elif menu == "🔮 Prediksi Baru":
     st.header("🔮 Prediksi Nasabah Baru")
     st.markdown("Isi data nasabah di bawah ini untuk memprediksi kemungkinan deposit.")
@@ -270,32 +263,24 @@ elif menu == "🔮 Prediksi Baru":
 
     if st.button("🔮 Prediksi Sekarang", type="primary"):
 
-        
-        numeric_input = {
-            'age': age, 'balance': balance, 'day': day,
-            'duration': duration, 'campaign': campaign,
-            'pdays': pdays, 'previous': previous
-        }
-        categorical_input = {
-            'job': job, 'marital': marital, 'education': education,
-            'default': default, 'housing': housing, 'loan': loan,
-            'contact': contact, 'month': month, 'poutcome': poutcome
+        input_raw = {
+            'age': age, 'job': job, 'marital': marital,
+            'education': education, 'default': default, 'balance': balance,
+            'housing': housing, 'loan': loan, 'contact': contact, 'day': day,
+            'month': month, 'duration': duration, 'campaign': campaign,
+            'pdays': pdays, 'previous': previous, 'poutcome': poutcome
         }
 
-   
+       
         input_final = pd.DataFrame(0, index=[0], columns=feature_cols)
-
-      
-        for col, val in numeric_input.items():
-            if col in input_final.columns:
+        for col, val in input_raw.items():
+            if col in numerical_features:
                 input_final[col] = val
-
-        
-        for col, val in categorical_input.items():
-            dummy_col = f"{col}_{val}"
-            if dummy_col in input_final.columns:
-                input_final[dummy_col] = 1
-          
+            else:
+                dummy_col = f"{col}_{val}"
+                if dummy_col in feature_cols:
+                    input_final[dummy_col] = 1
+                
         model = lr if model_choice == "Logistic Regression" else nb
         pred = model.predict(input_final)[0]
         prob = model.predict_proba(input_final)[0]
