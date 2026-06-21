@@ -1,6 +1,3 @@
-# ============================================================
-# Import Library
-# ============================================================
 import pandas as pd
 import numpy as np
 import streamlit as st
@@ -20,9 +17,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 
-# ============================================================
-# Konfigurasi Halaman
-# ============================================================
+
 st.set_page_config(
     page_title="Bank Deposit Prediction",
     page_icon="🏦",
@@ -33,9 +28,7 @@ st.title("🏦 Bank Marketing – Deposit Prediction")
 st.markdown("Prediksi apakah nasabah akan melakukan deposit berdasarkan data kampanye bank.")
 
 
-# ============================================================
-# Load Dataset
-# ============================================================
+
 @st.cache_data
 def load_data():
     df = pd.read_csv("bank.csv")
@@ -49,35 +42,33 @@ except FileNotFoundError:
     st.stop()
 
 
-# ============================================================
-# Training Model (One-Hot Encoding, sesuai notebook)
-# ============================================================
+
 @st.cache_resource
 def train_models(df):
     X = df.drop('deposit', axis=1).copy()
     y = df['deposit'].copy()
 
-    # One-hot encoding (sesuai notebook)
+
     categorical_features = X.select_dtypes(include='object').columns.tolist()
     X_encoded = pd.get_dummies(X, columns=categorical_features, drop_first=True)
 
     le_target = LabelEncoder()
     y_encoded = le_target.fit_transform(y)
 
-    # Train-Test Split
+
     X_train, X_test, y_train, y_test = train_test_split(
         X_encoded, y_encoded, test_size=0.2, random_state=42
     )
 
-    # Logistic Regression (tanpa scaling, sesuai notebook)
+
     lr = LogisticRegression(max_iter=2000)
     lr.fit(X_train, y_train)
 
-    # Naive Bayes (tanpa scaling, sesuai notebook)
+
     nb = GaussianNB()
     nb.fit(X_train, y_train)
 
-    # Clustering (age + balance, sesuai notebook)
+
     cluster_features = ['age', 'balance']
     X_cluster = df[cluster_features]
     scaler_cluster = StandardScaler()
@@ -95,18 +86,14 @@ def train_models(df):
  kmeans, scaler_cluster, X_cluster_scaled, cluster_labels, sil_score) = train_models(df)
 
 
-# ============================================================
-# Navigasi Sidebar
-# ============================================================
+
 menu = st.sidebar.radio(
     "📂 Navigasi",
     ["📊 Eksplorasi Data", "🧩 Segmentasi Nasabah", "📈 Evaluasi Model", "🔮 Prediksi Baru"]
 )
 
 
-# ============================================================
-# Halaman: Eksplorasi Data
-# ============================================================
+
 if menu == "📊 Eksplorasi Data":
     st.header("📊 Eksplorasi Data")
 
@@ -145,9 +132,7 @@ if menu == "📊 Eksplorasi Data":
     plt.close()
 
 
-# ============================================================
-# Halaman: Segmentasi Nasabah (K-Means)
-# ============================================================
+
 elif menu == "🧩 Segmentasi Nasabah":
     st.header("🧩 Segmentasi Nasabah (K-Means, k=4)")
     st.markdown(f"Segmentasi menggunakan fitur **age** dan **balance**. Silhouette Score: **{sil_score:.3f}**")
@@ -174,9 +159,7 @@ elif menu == "🧩 Segmentasi Nasabah":
     st.dataframe(df_cluster_profile.groupby('cluster').agg(['mean', 'median', 'count']))
 
 
-# ============================================================
-# Halaman: Evaluasi Model
-# ============================================================
+
 elif menu == "📈 Evaluasi Model":
     st.header("📈 Evaluasi Model")
 
@@ -248,9 +231,7 @@ elif menu == "📈 Evaluasi Model":
     plt.close()
 
 
-# ============================================================
-# Halaman: Prediksi Baru
-# ============================================================
+
 elif menu == "🔮 Prediksi Baru":
     st.header("🔮 Prediksi Nasabah Baru")
     st.markdown("Isi data nasabah di bawah ini untuk memprediksi kemungkinan deposit.")
@@ -289,23 +270,32 @@ elif menu == "🔮 Prediksi Baru":
 
     if st.button("🔮 Prediksi Sekarang", type="primary"):
 
-        # Susun input mentah
-        input_raw = pd.DataFrame([{
-            'age': age, 'job': job, 'marital': marital,
-            'education': education, 'default': default, 'balance': balance,
-            'housing': housing, 'loan': loan, 'contact': contact, 'day': day,
-            'month': month, 'duration': duration, 'campaign': campaign,
-            'pdays': pdays, 'previous': previous, 'poutcome': poutcome
-        }])
+        
+        numeric_input = {
+            'age': age, 'balance': balance, 'day': day,
+            'duration': duration, 'campaign': campaign,
+            'pdays': pdays, 'previous': previous
+        }
+        categorical_input = {
+            'job': job, 'marital': marital, 'education': education,
+            'default': default, 'housing': housing, 'loan': loan,
+            'contact': contact, 'month': month, 'poutcome': poutcome
+        }
 
-        # One-hot encoding input baru — harus sama persis dengan kolom training
-        categorical_features = input_raw.select_dtypes(include='object').columns.tolist()
-        input_encoded = pd.get_dummies(input_raw, columns=categorical_features, drop_first=True)
+   
+        input_final = pd.DataFrame(0, index=[0], columns=feature_cols)
 
-        # Samakan kolom dengan saat training (kolom yang tidak muncul di input diisi 0)
-        input_final = input_encoded.reindex(columns=feature_cols, fill_value=0)
+      
+        for col, val in numeric_input.items():
+            if col in input_final.columns:
+                input_final[col] = val
 
-        # Prediksi (tanpa scaling, sesuai notebook)
+        
+        for col, val in categorical_input.items():
+            dummy_col = f"{col}_{val}"
+            if dummy_col in input_final.columns:
+                input_final[dummy_col] = 1
+          
         model = lr if model_choice == "Logistic Regression" else nb
         pred = model.predict(input_final)[0]
         prob = model.predict_proba(input_final)[0]
